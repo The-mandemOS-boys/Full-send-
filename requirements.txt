@@ -1,0 +1,9 @@
+beautifulsoup4
+firebase-admin
+Flask
+Flask-Cors
+openai
+psutil
+pyngrok
+requests
+SpeechRecognition

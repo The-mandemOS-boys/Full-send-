@@ -1,0 +1,19 @@
+# Netlify build configuration for MandemOS Hecate Hydra
+
+## The build section defines how Netlify should build the project.
+## We use `npm install` here instead of `npm ci` because there is no
+## package-lock.json in the repository. Running `npm install` will
+## generate a lockfile during the build, preventing errors like
+## `npm error code EUSAGE` that occur when `npm ci` is used without
+## an existing lockfile.
+
+[build]
+  # Install npm dependencies and run the Hugo build script.
+  command = "npm install --no-audit --no-fund && npm run build"
+
+  # Hugo outputs the generated site to the repository root.
+  publish = "."
+
+[build.environment]
+  # Pin the Node.js version to match Netlify's default LTS version.
+  NODE_VERSION = "18"

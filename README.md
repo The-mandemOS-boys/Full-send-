@@ -1,0 +1,314 @@
+
+# Hecate-Auto
+
+> The daemon who codes, commits, and controls the flame of your GitHub repo.
+
+### Personalization
+
+Open the web interface and click **Settings** to customize your experience. You can set a username, choose text and background colors, and pick a wallpaper. Preferences are saved in your browser.
+
+### Server Administration
+Colby Atcheson is the server administrator. Update `server_admins.json` to grant additional admin access.
+
+### Admin Password
+Use `admin:<password>` to gain admin privileges. Check status with `admin:status` and revoke with `admin:logout`. The default password is `whostheboss` or can be overridden with the `ADMIN_PASSWORD` environment variable.
+
+### Usage
+1. Provide your GitHub token and remote URL using environment variables or a `config.json` file:
+
+   **Environment variables**
+   ```bash
+   export GITHUB_TOKEN=YOUR_GITHUB_TOKEN
+   export GITHUB_REMOTE=https://github.com/username/repo.git
+   ```
+
+   **OR** create a `config.json` file:
+   ```json
+   {
+     "token": "YOUR_GITHUB_TOKEN",
+     "remote": "https://github.com/username/repo.git"
+   }
+   ```
+2. Run `node hecate-auto.js`
+3. It will pull the latest changes and then commit and push code to your repo automatically. If the pull results in conflicts, the script will stop so you can resolve them manually.
+   To let the script resolve conflicts for you, set `GIT_AUTOMERGE` to `ours` or
+   `theirs` and it will retry the merge using that strategy.
+
+The script verifies your token with the GitHub API before pushing so you know
+your credentials are valid.
+
+### Tests
+Run the unit tests with:
+
+```bash
+npm test
+```
+
+These tests confirm basic functionality such as GitHub API authentication.
+
+This is the base of a fully interactive coding bot. Expand with AI core or Discord input.
+
+### Memory Tools
+Use `remember:your fact` to store a memory and `recall` to read them back. The command `summarize` or the **Summarize Memory** button in the browser returns a short summary of everything remembered.
+Use `learn:some text` to extract key bullet points from the provided content and append them to memory.
+Use `clone:send:message` to broadcast a message to other running clones. They can read all messages with `clone:read`.
+Use `clone:remember:fact` to store a note in a shared memory file that all clones access. Retrieve the combined notes with `clone:memories`.
+Use `extrapolate:your scenario` to have Hecate outline possible outcomes and eventualities for the described situation. Append
+`|data:outcome1,outcome2|history:past1,past2` to gauge outcomes using historical probability ratios.
+To sync clones over a network, start `clone_network.py` on one machine and set the environment variable `CLONE_SERVER_URL` or `CLONE_ENDPOINTS` on each clone to point at one or more servers (comma separated). When defined, clone commands will use these endpoints instead of local files and automatically drop any that become unreachable. Servers can optionally replicate with peers listed in `SERVER_ENDPOINTS`. A small helper utility `clone_client.py` provides direct access to these features:
+
+```bash
+python clone_client.py --help
+```
+
+For automatic peer discovery across the public internet, run a lightweight
+registry service and provide its URL in `SERVER_REGISTRY_URL`. Each clone can
+publish its reachable address via `CLONE_PUBLIC_URL` and will periodically
+retrieve the current list of peers from the registry so Hecate hydra heads can
+synchronize without manually specifying every endpoint.
+
+To reach peers behind NAT or firewalls, `clone_network.py` can optionally publish
+its own address automatically. Set `USE_TAILSCALE=1` to advertise the server's
+Tailscale IP or `USE_NGROK=1` to launch an ngrok tunnel. When either option is
+enabled, the script will set `CLONE_PUBLIC_URL` for you. ngrok support requires
+the `pyngrok` package and a valid `NGROK_AUTHTOKEN`.
+
+#### Firebase Memory Storage
+Provide a Firebase service account JSON file and set `FIREBASE_CRED_PATH` to its location to store memories in Firestore. When configured, Hecate mirrors remembered facts in a `memory` collection so they persist across sessions. Without credentials, it falls back to the local `memory.txt` file.
+
+### Sensitive Data Firewall
+`clone_network.py` now masks API keys and other tokens from shared messages and tasks. Set `FIREWALL_PATTERNS` with comma-separated regexes to customize what gets filtered.
+
+### Distributed Compute Sharing
+You can pool spare CPU cycles from multiple machines using the clone network.
+
+1. **Start the server** on a central node:
+   ```bash
+   python clone_network.py
+   ```
+   You can provide a comma-separated list of other servers in `SERVER_ENDPOINTS` to enable automatic replication.
+
+2. **Launch workers** on every machine that should contribute compute power:
+   ```bash
+   export CLONE_ENDPOINTS=http://<server-host>:5000
+   python excess_compute.py
+   ```
+   Workers only fetch tasks when their average CPU usage is below the
+   `CPU_THRESHOLD` environment variable (50% by default).
+
+3. **Queue tasks** from any client using the updated `clone_client.py`:
+   ```bash
+   python clone_client.py queue-task "echo hello"
+   ```
+   Results can be viewed with:
+   ```bash
+   python clone_client.py results
+   ```
+
+**Warning:** queued commands are executed with the system shell on each worker.
+Never accept tasks from untrusted sources and avoid running this network on
+machines with sensitive data.
+
+
+### ChatGPT Integration
+Hecate can now send your text prompts to OpenAI's ChatGPT. By default it uses
+the `gpt-4o` model, but you can select any available GPT model by setting the
+`OPENAI_MODEL` environment variable. The script looks
+for the API key in the `OPENAI_API_KEY` environment variable. If that isn't
+present, it will attempt to load a key from a file named `openai_key.txt` in the
+repository root.
+
+Hecate maintains a short conversation history so each reply can draw on recent
+context from the dialogue, producing more natural responses.
+
+To obtain an API key, sign up or log in at [OpenAI](https://platform.openai.com).
+Visit the **API keys** page of your account dashboard and create a new secret
+key. Copy that key and provide it either through the environment variable or the
+`openai_key.txt` file.
+
+```bash
+# Option 1: environment variable
+export OPENAI_API_KEY=your_api_key
+# Optional: choose a specific model
+export OPENAI_MODEL=gpt-3.5-turbo
+
+# Option 2: place the key in openai_key.txt
+echo your_api_key > openai_key.txt
+
+python "OK workspaces/main.py"
+```
+
+In the browser interface, type your message into the text box or use the voice button.
+You can choose from any system speech synthesis voice using the **Voice** drop-down next to the Speak button.
+You can also click **Summarize Memory** to get a short summary of all remembered facts.
+
+### Adding External APIs
+Use the **API endpoint** field in the interface to submit URLs. Hecate records each entry in `scripts/apis.txt` for later use within its system scripts.
+
+### API Key Insertion
+Hecate requires an OpenAI API key before it can talk to ChatGPT. You can provide the key in either of the following ways:
+
+1. Export it as an environment variable:
+
+   ```bash
+   export OPENAI_API_KEY=your_api_key
+   ```
+
+2. Write it to a file named `openai_key.txt` in the repository root:
+
+   ```bash
+   echo your_api_key > openai_key.txt
+   ```
+
+Both the CLI tools and the API server automatically read the key from these locations when they start.
+
+### Run Locally
+
+1. Install Python dependencies:
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. Start the local API server (add `-b` to run in the background):
+
+   ```bash
+  python "OK workspaces/main.py"    # foreground
+  python "OK workspaces/main.py" -b # background
+  python __main__.py -b              # same as above via module entry
+  ```
+
+   The server logs each conversation to `conversation.log` so you can read back the dialogue later.
+
+   A health check endpoint is available at `http://<host>:<port>/health` (default `localhost:8080`).
+   Load balancers can poll this URL to verify the service is running.
+
+3. Open `index.html` in your browser. The page will communicate with the server at `http://localhost:8080` by default.
+   Set the `PORT` environment variable or use the `--port` option to run additional instances on different ports on Windows, macOS, or Linux.
+
+### Autostart and Crash Recovery
+
+Hecate can install itself as a systemd service so it launches on system boot
+and restarts automatically if it crashes. Run the helper script as root:
+
+```bash
+sudo python install_service.py
+```
+
+The service executes `autostart.py`, which monitors the main process and
+records each crash. After a configurable number of consecutive crashes
+(`MAX_CRASHES`, default `5`), it rolls back the repository to the last known
+good commit to prevent endless restart loops. Use `RESTART_DELAY` to control
+the delay between restart attempts.
+
+### Command Line Chat
+If you prefer to talk to Hecate directly in your terminal, run the small CLI utility:
+
+```bash
+python "OK workspaces/cli.py"
+```
+
+Type your message and press Enter to receive a response. Use `quit` or `exit` to leave the session.
+You can also enable speech-to-text input with the `--voice` flag (requires a microphone and PyAudio):
+
+```bash
+python "OK workspaces/cli.py" --voice
+```
+
+To hear the responses spoken aloud, add the `--speak` flag (requires pyttsx3):
+
+```bash
+python "OK workspaces/cli.py" --speak
+```
+
+For a minimal text-only chat that simply prints each response on the screen, you can run:
+
+```bash
+python screen_chat.py
+```
+Add `--speak` to also vocalize the output with `espeak` if available.
+
+### Gmail Integration
+Set the following environment variables so Hecate can send and receive email via Gmail:
+
+```bash
+export GMAIL_USER=your_address@gmail.com
+export GMAIL_PASS=your_app_password
+```
+
+Use the commands `email:recipient|subject|body` to send an email and `inbox:n` to read your latest `n` emails.
+
+### File Utilities
+Use `retrieve:url|filename` to download a remote file into the `scripts/` folder.
+Use `create:filename|content` to create a file with optional content.
+Use `move:src|dest` to move or rename files within the `scripts/` folder.
+Use `list` to view files saved in `scripts/`.
+Use `read:filename` to display a file's contents.
+Use `delete:filename` to remove a file.
+
+### Location Tagging
+Capture your current browser location and email it using the command format `location:lat|lon|recipient`.
+The web interface provides buttons to fetch your coordinates and send them via email.
+
+You can configure an emergency contact by setting the environment variable `DISTRESS_EMAIL`.
+If your location has been tagged and you type **"Alika in distress"**, Hecate will
+email the saved location to this address.
+Hecate also listens for certain distress phrases such as "help", "help me", "I'm scared",
+"I'll call my dad", "stop it now", and "leave me alone". Saying or typing any of these will
+trigger the same emergency email with your tagged location.
+
+### Running from a zipped archive
+You can bundle Hecate into a single executable zip using Python's `zipapp` module. First make sure `__main__.py` is present (it runs the server). Create the archive:
+
+```bash
+python -m zipapp . -p '/usr/bin/env python3' -o hecate.pyz
+```
+
+Run it with:
+
+```bash
+python hecate.pyz          # foreground
+python hecate.pyz -b       # background
+```
+
+This will start the API server directly from the zip file.
+
+### Self Start on Failure
+Run `autostart.py` to keep the server running even if it crashes. The script
+launches `__main__.py` (or a custom entry defined in `HECATE_ENTRY`) and
+restarts it whenever the process exits with a non‑zero status. Use
+`RESTART_DELAY` to control the delay between restarts and `HECATE_ARGS` to
+provide additional command‑line arguments to the entry script.
+
+### Self Repair and Improvement
+Use `selfrepair:description` to attempt an automated fix of Hecate's own code based on the issue description. Similarly, `selfimprove:suggestion` asks Hecate to refactor itself with the provided suggestion. Both commands rely on your OpenAI API key and create a `.bak` backup of the current source before overwriting it if successful.
+
+### Self Improvement Lattice
+Hecate tracks ongoing improvements in a simple lattice stored in `lattice.json`.
+Use these commands to manage it:
+
+```
+lattice:show                     # display all improvement tasks
+lattice:add:category|task        # add a new task under a category
+lattice:complete:category|n      # mark task number n as done
+lattice:reset                    # restore the default lattice
+```
+
+### Antivirus Scanning
+Run `antivirus.py` to periodically scan the `scripts/` directory for infected files using `clamscan`. The script also attempts to keep the ClamAV virus definitions up to date by calling `freshclam` at regular intervals. Any detected threats are moved to the `quarantine/` folder. Ensure both `clamscan` and `freshclam` are installed so the scan and updates can run successfully.
+
+### MandemOS Database
+Run `python setup_database.py` to create a SQLite database named `mandemos.db` with tables for scrolls, relics, keys, and keyword usage statistics.
+
+Once the database exists, you can populate it with the metadata from `metadata.json` using `insert_metadata.py`:
+
+```bash
+python insert_metadata.py
+```
+
+This inserts the scroll information from `metadata.json` into the `scrolls` table.
+
+### Updating Dependencies and Repository
+Use `update:deps` to install or upgrade the Python packages listed in `requirements.txt`.
+Run `update:repo` to pull the latest changes from the Git repository.
+
